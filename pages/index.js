@@ -1,8 +1,3 @@
-// ============================================
-// UPDATE 1: Homepage (pages/index.js)
-// Replace the existing homepage content with this:
-// ============================================
-
 export default function Home() {
   return (
     <div style={{ 
@@ -63,12 +58,65 @@ export default function Home() {
         
         <p style={{ 
           fontSize: '22px', 
+          marginBottom: '20px', 
+          color: '#B8C5D6',
+          lineHeight: '1.6',
+          fontWeight: '500'
+        }}>
+          Manage Your Drone Program with Confidence
+        </p>
+        
+        <p style={{ 
+          fontSize: '18px', 
+          marginBottom: '30px', 
+          color: '#B8C5D6',
+          lineHeight: '1.6',
+          maxWidth: '800px',
+          margin: '0 auto 30px auto'
+        }}>
+          DroneHQ.io is an all-in-one platform designed for schools, public safety agencies, and independent pilots. 
+          From flight logging and equipment tracking to license management and LAANC-ready airspace checks, 
+          DroneHQ.io brings every part of your drone program into one streamlined dashboard.
+        </p>
+
+        {/* Feature Checkmarks */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+          gap: '12px',
+          maxWidth: '800px',
+          margin: '0 auto 40px auto',
+          textAlign: 'left'
+        }}>
+          <div style={{ color: '#7ED321', fontSize: '16px' }}>
+            ✅ Real-time flight logs with GPS and time-stamped records
+          </div>
+          <div style={{ color: '#7ED321', fontSize: '16px' }}>
+            ✅ Equipment check-in/out and lifecycle tracking
+          </div>
+          <div style={{ color: '#7ED321', fontSize: '16px' }}>
+            ✅ Certification monitoring with automated renewal alerts
+          </div>
+          <div style={{ color: '#7ED321', fontSize: '16px' }}>
+            ✅ Digital pre-flight checklists and compliance tools
+          </div>
+          <div style={{ color: '#7ED321', fontSize: '16px' }}>
+            ✅ Organization management with role-based permissions
+          </div>
+          <div style={{ color: '#7ED321', fontSize: '16px' }}>
+            ✅ Built-in invoicing and reporting for agencies and solo pilots
+          </div>
+        </div>
+
+        <p style={{ 
+          fontSize: '16px', 
           marginBottom: '40px', 
           color: '#B8C5D6',
-          lineHeight: '1.6'
+          lineHeight: '1.6',
+          fontStyle: 'italic'
         }}>
-          Streamline flight logging, safety checklists, and compliance management for schools, 
-          public safety agencies, and drone programs of all sizes.
+          Whether you're running a classroom drone fleet, managing a public safety program, or operating as a solo pilot, 
+          DroneHQ.io helps you stay compliant, organized, and mission-ready.
         </p>
 
         {/* Call-to-Action Buttons */}
@@ -111,6 +159,22 @@ export default function Home() {
             }}
           >
             🎓 Join as Teacher
+          </button>
+
+          <button 
+            onClick={() => window.location.href = '/signup/student'}
+            style={{ 
+              padding: '18px 36px', 
+              fontSize: '18px', 
+              backgroundColor: '#17a2b8', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            🎓 Student Signup
           </button>
         </div>
 
@@ -248,71 +312,3 @@ export default function Home() {
     </div>
   )
 }
-
-// ============================================
-// UPDATE 2: Dashboard Header (pages/dashboard.js)
-// Find the header section and update to match branding:
-// ============================================
-
-// In dashboard.js, update the header section to:
-<div style={{ 
-  display: 'flex', 
-  justifyContent: 'space-between', 
-  alignItems: 'center',
-  background: 'linear-gradient(135deg, #1a2332 0%, #0f1419 100%)',
-  color: 'white',
-  padding: '20px 30px',
-  borderRadius: '10px',
-  marginBottom: '30px'
-}}>
-  <h1 style={{ margin: '0', color: '#7ED321' }}>🚁 DroneHQ.io Dashboard</h1>
-  <div>
-    <span style={{ marginRight: '20px', color: '#B8C5D6' }}>Welcome, {user.email}!</span>
-    <button 
-      onClick={handleSignOut}
-      style={{ 
-        padding: '8px 16px',
-        backgroundColor: '#dc3545',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: 'pointer'
-      }}
-    >
-      Sign Out
-    </button>
-  </div>
-</div>
-
-// ============================================
-// UPDATE 3: Login Page Branding (pages/login.js)
-// Update the login header to match:
-// ============================================
-
-// In login.js, update the header to:
-<div style={{ 
-  maxWidth: '400px', 
-  margin: '100px auto', 
-  padding: '0',
-  borderRadius: '10px',
-  overflow: 'hidden',
-  boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-}}>
-  <div style={{
-    backgroundColor: '#1a2332',
-    color: 'white',
-    padding: '30px',
-    textAlign: 'center'
-  }}>
-    <h2 style={{ margin: '0', color: '#7ED321', fontSize: '24px' }}>
-      🚁 DroneHQ.io
-    </h2>
-    <p style={{ margin: '10px 0 0 0', color: '#B8C5D6' }}>
-      Professional Drone Management
-    </p>
-  </div>
-  
-  <div style={{ padding: '30px', backgroundColor: 'white' }}>
-    {/* Rest of login form stays the same */}
-  </div>
-</div>
