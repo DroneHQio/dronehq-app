@@ -6,7 +6,7 @@ export default function Home() {
       color: 'white',
       padding: '20px'
     }}>
-      {/* Navigation Header */}
+      {/* Navigation Header with Logo */}
       <nav style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -16,9 +16,23 @@ export default function Home() {
         padding: '20px 0'
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          {/* Logo would go here - for now using text */}
-          <h2 style={{ margin: '0', fontSize: '28px', fontWeight: 'bold', color: '#7ED321' }}>
-            🚁 DroneHQ.io
+          <img 
+            src="/images/logo.png" 
+            alt="DroneHQ.io Logo"
+            style={{ 
+              height: '50px', 
+              width: 'auto',
+              marginRight: '15px'
+            }}
+          />
+          <h2 style={{ 
+            margin: '0', 
+            fontSize: '28px', 
+            fontWeight: 'bold', 
+            color: '#7ED321',
+            fontFamily: 'Arial, sans-serif'
+          }}>
+            DroneHQ.io
           </h2>
         </div>
         <button 
@@ -294,7 +308,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer with Metro TXK Media */}
       <footer style={{
         textAlign: 'center',
         padding: '40px 20px',
