@@ -1,14 +1,43 @@
 import { useState } from 'react'
+import { signUp, signIn } from '../lib/supabase'
+import { useRouter } from 'next/router'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const router = useRouter()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // TODO: Connect to Supabase authentication
-    alert(`${isSignUp ? 'Sign Up' : 'Login'} clicked for: ${email}`)
+    setLoading(true)
+    setMessage('')
+
+    try {
+      if (isSignUp) {
+        const { data, error } = await signUp(email, password)
+        if (error) {
+          setMessage(`Error: ${error.message}`)
+        } else {
+          setMessage('Success! Check your email to confirm your account.')
+        }
+      } else {
+        const { data, error } = await signIn(email, password)
+        if (error) {
+          setMessage(`Error: ${error.message}`)
+        } else {
+          setMessage('Login successful!')
+          // Redirect to dashboard (we'll build this next)
+          router.push('/dashboard')
+        }
+      }
+    } catch (err) {
+      setMessage('Something went wrong. Please try again.')
+    }
+    
+    setLoading(false)
   }
 
   return (
@@ -20,6 +49,18 @@ export default function Login() {
       borderRadius: '10px'
     }}>
       <h2>🚁 {isSignUp ? 'Create Account' : 'Login to'} DroneHQ.io</h2>
+      
+      {message && (
+        <div style={{ 
+          padding: '10px', 
+          marginBottom: '20px',
+          backgroundColor: message.includes('Error') ? '#ffebee' : '#e8f5e8',
+          color: message.includes('Error') ? '#c62828' : '#2e7d32',
+          borderRadius: '5px'
+        }}>
+          {message}
+        </div>
+      )}
       
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '20px' }}>
@@ -58,18 +99,19 @@ export default function Login() {
         
         <button 
           type="submit"
+          disabled={loading}
           style={{ 
             width: '100%',
             padding: '12px', 
-            backgroundColor: '#0070f3', 
+            backgroundColor: loading ? '#ccc' : '#0070f3', 
             color: 'white', 
             border: 'none', 
             borderRadius: '5px',
             fontSize: '16px',
-            cursor: 'pointer'
+            cursor: loading ? 'not-allowed' : 'pointer'
           }}
         >
-          {isSignUp ? 'Create Account' : 'Login'}
+          {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Login')}
         </button>
       </form>
       
