@@ -7,6 +7,7 @@ export default function Home() {
       
       <div style={{ marginTop: '30px' }}>
         <div style={{ marginTop: '30px' }}>
+  <div style={{ marginTop: '30px' }}>
   <button 
     onClick={() => window.location.href = '/signup/organization'}
     style={{ 
@@ -17,14 +18,15 @@ export default function Home() {
       border: 'none', 
       borderRadius: '5px',
       cursor: 'pointer',
-      marginRight: '15px'
+      marginRight: '15px',
+      marginBottom: '10px'
     }}
   >
-    🏫 Start Organization Trial
+    🏫 Start Organization
   </button>
   
   <button 
-    onClick={() => window.location.href = '/login'}
+    onClick={() => window.location.href = '/signup/teacher'}
     style={{ 
       padding: '15px 30px', 
       fontSize: '18px', 
@@ -32,11 +34,30 @@ export default function Home() {
       color: 'white', 
       border: 'none', 
       borderRadius: '5px',
-      cursor: 'pointer'
+      cursor: 'pointer',
+      marginRight: '15px',
+      marginBottom: '10px'
     }}
   >
-    👤 Individual Login
+    🎓 Join as Teacher
   </button>
+  
+  <button 
+    onClick={() => window.location.href = '/login'}
+    style={{ 
+      padding: '15px 30px', 
+      fontSize: '18px', 
+      backgroundColor: '#6c757d', 
+      color: 'white', 
+      border: 'none', 
+      borderRadius: '5px',
+      cursor: 'pointer',
+      marginBottom: '10px'
+    }}
+  >
+    👤 Sign In
+  </button>
+</div>
 </div>
       </div>
       
