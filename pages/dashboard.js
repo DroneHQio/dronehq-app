@@ -141,17 +141,20 @@ export default function Dashboard() {
         }}>
           <h3>📋 Safety Checklist</h3>
           <p>Complete pre-flight and post-flight safety checklists.</p>
-          <button style={{ 
-            padding: '12px 24px',
-            backgroundColor: '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            marginTop: '10px'
-          }}>
-            Start Checklist
-          </button>
+          <button 
+  onClick={() => router.push('/checklist')}
+  style={{ 
+    padding: '12px 24px',
+    backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    marginTop: '10px'
+  }}
+>
+  Start Checklist
+</button>
         </div>
 
         <div style={{ 
