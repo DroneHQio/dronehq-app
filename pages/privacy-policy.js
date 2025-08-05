@@ -169,7 +169,7 @@ export default function PrivacyPolicy() {
           marginBottom: '40px'
         }}>
           <strong>DroneHQ.io Privacy Team</strong><br/>
-          Email: privacy@dronehq.io<br/>
+          Email: support@dronehq.io<br/>
           Address: [Your Business Address]<br/>
           Phone: [Your Contact Number]
         </div>
