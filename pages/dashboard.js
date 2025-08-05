@@ -165,17 +165,20 @@ export default function Dashboard() {
         }}>
           <h3>🆔 Manage Licenses</h3>
           <p>Track pilot certifications and expiration dates.</p>
-          <button style={{ 
-            padding: '12px 24px',
-            backgroundColor: '#ffc107',
-            color: 'black',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            marginTop: '10px'
-          }}>
-            View Licenses
-          </button>
+          <button 
+  onClick={() => router.push('/licenses')}
+  style={{ 
+    padding: '12px 24px',
+    backgroundColor: '#ffc107',
+    color: 'black',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    marginTop: '10px'
+  }}
+>
+  View Licenses
+</button>
         </div>
       </div>
     </div>
