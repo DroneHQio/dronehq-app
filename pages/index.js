@@ -6,17 +6,20 @@ export default function Home() {
       <p>Streamline flight logging, equipment tracking, and compliance for schools, public safety, and solo pilots.</p>
       
       <div style={{ marginTop: '30px' }}>
-        <button style={{ 
-          padding: '15px 30px', 
-          fontSize: '18px', 
-          backgroundColor: '#0070f3', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '5px',
-          cursor: 'pointer'
-        }}>
-          Start Free Trial
-        </button>
+        <button 
+  onClick={() => window.location.href = '/login'}
+  style={{ 
+    padding: '15px 30px', 
+    fontSize: '18px', 
+    backgroundColor: '#0070f3', 
+    color: 'white', 
+    border: 'none', 
+    borderRadius: '5px',
+    cursor: 'pointer'
+  }}
+>
+  Start Free Trial
+</button>
       </div>
       
       <div style={{ marginTop: '50px' }}>
