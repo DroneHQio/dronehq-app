@@ -303,10 +303,13 @@ export default function Home() {
         color: '#B8C5D6'
       }}>
         <p>© 2025 DroneHQ.io - Professional Drone Program Management</p>
-        <div style={{ marginTop: '10px' }}>
-          <a href="#" style={{ color: '#7ED321', textDecoration: 'none', margin: '0 15px' }}>Privacy Policy</a>
-          <a href="#" style={{ color: '#7ED321', textDecoration: 'none', margin: '0 15px' }}>Terms of Service</a>
-          <a href="#" style={{ color: '#7ED321', textDecoration: 'none', margin: '0 15px' }}>Support</a>
+        <p style={{ marginTop: '5px', fontSize: '14px' }}>
+          Developed by <strong style={{ color: '#7ED321' }}>Metro TXK Media</strong>
+        </p>
+        <div style={{ marginTop: '15px' }}>
+          <a href="/privacy-policy" style={{ color: '#7ED321', textDecoration: 'none', margin: '0 15px' }}>Privacy Policy</a>
+          <a href="/terms-of-service" style={{ color: '#7ED321', textDecoration: 'none', margin: '0 15px' }}>Terms of Service</a>
+          <a href="/support" style={{ color: '#7ED321', textDecoration: 'none', margin: '0 15px' }}>Support</a>
         </div>
       </footer>
     </div>
