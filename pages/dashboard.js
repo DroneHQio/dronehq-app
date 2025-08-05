@@ -117,17 +117,20 @@ export default function Dashboard() {
         }}>
           <h3>✈️ Log New Flight</h3>
           <p>Record a new drone flight with location, duration, and notes.</p>
-          <button style={{ 
-            padding: '12px 24px',
-            backgroundColor: '#0070f3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            marginTop: '10px'
-          }}>
-            Start Flight Log
-          </button>
+          <button 
+  onClick={() => router.push('/flight-log')}
+  style={{ 
+    padding: '12px 24px',
+    backgroundColor: '#0070f3',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    marginTop: '10px'
+  }}
+>
+  Start Flight Log
+</button>
         </div>
 
         <div style={{ 
