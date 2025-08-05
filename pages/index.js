@@ -6,20 +6,38 @@ export default function Home() {
       <p>Streamline flight logging, equipment tracking, and compliance for schools, public safety, and solo pilots.</p>
       
       <div style={{ marginTop: '30px' }}>
-        <button 
-  onClick={() => window.location.href = '/login'}
-  style={{ 
-    padding: '15px 30px', 
-    fontSize: '18px', 
-    backgroundColor: '#0070f3', 
-    color: 'white', 
-    border: 'none', 
-    borderRadius: '5px',
-    cursor: 'pointer'
-  }}
->
-  Start Free Trial
-</button>
+        <div style={{ marginTop: '30px' }}>
+  <button 
+    onClick={() => window.location.href = '/signup/organization'}
+    style={{ 
+      padding: '15px 30px', 
+      fontSize: '18px', 
+      backgroundColor: '#0070f3', 
+      color: 'white', 
+      border: 'none', 
+      borderRadius: '5px',
+      cursor: 'pointer',
+      marginRight: '15px'
+    }}
+  >
+    🏫 Start Organization Trial
+  </button>
+  
+  <button 
+    onClick={() => window.location.href = '/login'}
+    style={{ 
+      padding: '15px 30px', 
+      fontSize: '18px', 
+      backgroundColor: '#28a745', 
+      color: 'white', 
+      border: 'none', 
+      borderRadius: '5px',
+      cursor: 'pointer'
+    }}
+  >
+    👤 Individual Login
+  </button>
+</div>
       </div>
       
       <div style={{ marginTop: '50px' }}>
