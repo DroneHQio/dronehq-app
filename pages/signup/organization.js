@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, signUp } from '../lib/supabase'
+import { supabase, signUp } from '../../lib/supabase'
 import { useRouter } from 'next/router'
 
 export default function OrganizationSignup() {
