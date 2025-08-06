@@ -843,7 +843,7 @@ export default function Checklist() {
         </div>
       </div>
 
-      {/* Mobile-specific styles */}
+      {/* Mobile responsive styles */}
       <style jsx>{`
         @media (max-width: 768px) {
           .checklist-grid {
@@ -879,6 +879,19 @@ export default function Checklist() {
         
         .completed-item {
           background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+        
+        .checklist-row:hover {
+          background-color: #f8f9fa;
+        }
+        
+        .template-button {
+          transition: all 0.2s ease;
+        }
+        
+        .template-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
       `}</style>
     </div>
