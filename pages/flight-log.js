@@ -281,11 +281,6 @@ export default function FlightLog() {
 
       if (error) throw error
 
-      // Send notification to org admin
-      if (organization) {
-        await sendFlightLogNotification(logData)
-      }
-
       setMessage('✅ Flight log saved successfully!')
       setShowForm(false)
       setFlightData({
@@ -302,15 +297,6 @@ export default function FlightLog() {
     }
 
     setLoading(false)
-  }
-
-  const sendFlightLogNotification = async (logData) => {
-    try {
-      // This would integrate with email service
-      console.log('Sending flight log notification to org admin:', logData)
-    } catch (error) {
-      console.error('Error sending notification:', error)
-    }
   }
 
   const formatDate = (dateString) => {
@@ -837,72 +823,6 @@ export default function FlightLog() {
           )}
         </div>
       </div>
-
-      {/* Mobile-specific flight controls for touch devices */}
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .flight-controls button {
-            width: 100%;
-            margin-bottom: 10px;
-            font-size: 20px;
-            padding: 20px;
-          }
-          
-          .form-grid {
-            grid-template-columns: 1fr !important;
-          }
-          
-          .location-input {
-            flex-direction: column;
-          }
-          
-          .location-input button {
-            margin-top: 10px;
-            width: 100%;
-          }
-        }
-        
-        .flight-controls {
-          text-align: center;
-        }
-        
-        .form-grid {
-          display: grid;
-          gap: 20px;
-        }
-        
-        .location-input {
-          display: flex;
-          gap: 10px;
-        }
-        
-        .location-input input {
-          flex: 1;
-        }
-        
-        .gps-button {
-          padding: 12px 16px;
-          background-color: #17a2b8;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 500;
-          white-space: nowrap;
-        }
-        
-        .gps-button:hover {
-          background-color: #138496;
-        }
-        
-        .flight-log-entry {
-          transition: all 0.2s ease;
-        }
-        
-        .flight-log-entry:hover {
-          background-color: #f8f9fa;
-        }
-      `}</style>
     </div>
   )
 }
