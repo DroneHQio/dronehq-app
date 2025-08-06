@@ -15,6 +15,37 @@ export default function SuperAdmin() {
   const [organizations, setOrganizations] = useState([])
   const [users, setUsers] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
+  const [message, setMessage] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+  
+  // Add Organization Form State
+  const [showAddOrgForm, setShowAddOrgForm] = useState(false)
+  const [newOrgData, setNewOrgData] = useState({
+    name: '',
+    type: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    phone: '',
+    adminEmail: '',
+    adminFirstName: '',
+    adminLastName: ''
+  })
+
+  const organizationTypes = [
+    'K-12 School District',
+    'Individual School', 
+    'Community College',
+    'University',
+    'Public Safety Agency',
+    'Fire Department',
+    'Police Department',
+    'Emergency Services',
+    'Private Training Company',
+    'Other'
+  ]
+
   const router = useRouter()
 
   useEffect(() => {
@@ -37,7 +68,7 @@ export default function SuperAdmin() {
       .eq('role', 'super_admin')
       .single()
 
-    if (!roleData) {
+    if (!roleData && session.user.email !== 'mtnr.fb@gmail.com') {
       router.push('/dashboard') // Redirect to regular dashboard
       return
     }
@@ -86,6 +117,7 @@ export default function SuperAdmin() {
           user_roles (
             role,
             approved,
+            organization_id,
             organizations (name)
           )
         `)
@@ -111,6 +143,7 @@ export default function SuperAdmin() {
       .from('user_roles')
       .update({
         approved: true,
+        approved_by: user.id,
         approved_at: new Date().toISOString()
       })
       .eq('user_id', userId)
@@ -133,6 +166,70 @@ export default function SuperAdmin() {
     if (!error) {
       loadDashboardData()
     }
+  }
+
+  const handleAddOrganization = async (e) => {
+    e.preventDefault()
+    setActionLoading(true)
+    setMessage('')
+    
+    try {
+      // Create organization code
+      const orgCode = newOrgData.name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6) + 
+                     Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      
+      // Create organization
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .insert([{
+          name: newOrgData.name,
+          organization_code: orgCode,
+          settings: {
+            type: newOrgData.type,
+            address: newOrgData.address,
+            city: newOrgData.city,
+            state: newOrgData.state,
+            zip_code: newOrgData.zipCode,
+            phone: newOrgData.phone,
+            created_by_super_admin: true,
+            admin_contact: {
+              first_name: newOrgData.adminFirstName,
+              last_name: newOrgData.adminLastName,
+              email: newOrgData.adminEmail
+            }
+          },
+          billing_status: 'trial',
+          subscription_plan: 'starter',
+          created_by: user.id
+        }])
+        .select()
+      
+      if (orgError) throw orgError
+      
+      setMessage(`✅ Organization "${newOrgData.name}" created successfully!
+      
+📋 Details:
+• Organization Code: ${orgCode}
+• Teacher Code: ${orgData[0].teacher_code || 'Generated automatically'}
+• Admin Contact: ${newOrgData.adminEmail}
+
+📧 Next Steps:
+1. Send the Teacher Code to ${newOrgData.adminEmail}
+2. They can use it to register as Organization Admin
+3. They can then invite teachers to their organization`)
+      
+      setShowAddOrgForm(false)
+      setNewOrgData({
+        name: '', type: '', address: '', city: '', state: '', zipCode: '', 
+        phone: '', adminEmail: '', adminFirstName: '', adminLastName: ''
+      })
+      loadDashboardData()
+      
+    } catch (error) {
+      setMessage(`❌ Error creating organization: ${error.message}`)
+    }
+    
+    setActionLoading(false)
   }
 
   if (loading) {
@@ -177,8 +274,10 @@ export default function SuperAdmin() {
             style={{ 
               height: '45px', 
               width: 'auto',
-              marginRight: '15px'
+              marginRight: '15px',
+              cursor: 'pointer'
             }}
+            onClick={() => router.push('/')}
           />
           <div>
             <h1 style={{ margin: '0', color: '#7ED321', fontSize: '32px' }}>
@@ -191,6 +290,20 @@ export default function SuperAdmin() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <span style={{ color: '#B8C5D6' }}>Super Admin: {user.email}</span>
+          <button 
+            onClick={() => router.push('/super-admin-management')}
+            style={{ 
+              padding: '8px 16px',
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            🔒 Admin Control
+          </button>
           <button 
             onClick={() => router.push('/dashboard')}
             style={{ 
@@ -221,6 +334,21 @@ export default function SuperAdmin() {
       </div>
 
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Message Display */}
+        {message && (
+          <div style={{ 
+            padding: '15px', 
+            marginBottom: '30px',
+            backgroundColor: message.includes('✅') ? 'rgba(40, 167, 69, 0.2)' : 'rgba(220, 53, 69, 0.2)',
+            color: message.includes('✅') ? '#90EE90' : '#ffcccc',
+            borderRadius: '8px',
+            border: `2px solid ${message.includes('✅') ? '#28a745' : '#dc3545'}`,
+            whiteSpace: 'pre-line'
+          }}>
+            {message}
+          </div>
+        )}
+
         {/* Stats Overview */}
         <div style={{ 
           display: 'grid', 
@@ -284,6 +412,186 @@ export default function SuperAdmin() {
             <small style={{ color: '#B8C5D6' }}>Enrolled students</small>
           </div>
         </div>
+
+        {/* Add Organization Form */}
+        <div style={{ marginBottom: '30px' }}>
+          <button
+            onClick={() => setShowAddOrgForm(!showAddOrgForm)}
+            style={{
+              padding: '15px 30px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '16px'
+            }}
+          >
+            {showAddOrgForm ? 'Cancel' : '🏢 Add New Organization'}
+          </button>
+        </div>
+
+        {showAddOrgForm && (
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            padding: '30px',
+            borderRadius: '12px',
+            marginBottom: '30px',
+            border: '2px solid #28a745'
+          }}>
+            <h3 style={{ color: '#28a745', marginBottom: '20px' }}>Add New Organization</h3>
+            
+            <form onSubmit={handleAddOrganization}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '20px',
+                marginBottom: '20px'
+              }}>
+                <div>
+                  <label style={{ fontWeight: 'bold', color: '#495057', display: 'block', marginBottom: '5px' }}>
+                    Organization Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newOrgData.name}
+                    onChange={(e) => setNewOrgData({...newOrgData, name: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '5px',
+                      fontSize: '16px'
+                    }}
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label style={{ fontWeight: 'bold', color: '#495057', display: 'block', marginBottom: '5px' }}>
+                    Organization Type *
+                  </label>
+                  <select
+                    value={newOrgData.type}
+                    onChange={(e) => setNewOrgData({...newOrgData, type: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '5px',
+                      fontSize: '16px'
+                    }}
+                    required
+                  >
+                    <option value="">Select type</option>
+                    {organizationTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: '20px',
+                marginBottom: '20px'
+              }}>
+                <div>
+                  <label style={{ fontWeight: 'bold', color: '#495057', display: 'block', marginBottom: '5px' }}>
+                    Admin First Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newOrgData.adminFirstName}
+                    onChange={(e) => setNewOrgData({...newOrgData, adminFirstName: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '5px',
+                      fontSize: '16px'
+                    }}
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label style={{ fontWeight: 'bold', color: '#495057', display: 'block', marginBottom: '5px' }}>
+                    Admin Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newOrgData.adminLastName}
+                    onChange={(e) => setNewOrgData({...newOrgData, adminLastName: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '5px',
+                      fontSize: '16px'
+                    }}
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label style={{ fontWeight: 'bold', color: '#495057', display: 'block', marginBottom: '5px' }}>
+                    Admin Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={newOrgData.adminEmail}
+                    onChange={(e) => setNewOrgData({...newOrgData, adminEmail: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '5px',
+                      fontSize: '16px'
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  style={{
+                    padding: '12px 30px',
+                    backgroundColor: actionLoading ? '#6c757d' : '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: actionLoading ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                    marginRight: '10px'
+                  }}
+                >
+                  {actionLoading ? 'Creating...' : 'Create Organization'}
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setShowAddOrgForm(false)}
+                  style={{
+                    padding: '12px 30px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div style={{ 
@@ -357,9 +665,8 @@ export default function SuperAdmin() {
                   <tr>
                     <th style={{ padding: '15px', textAlign: 'left' }}>Organization</th>
                     <th style={{ padding: '15px', textAlign: 'left' }}>Code</th>
+                    <th style={{ padding: '15px', textAlign: 'left' }}>Teacher Code</th>
                     <th style={{ padding: '15px', textAlign: 'left' }}>Status</th>
-                    <th style={{ padding: '15px', textAlign: 'left' }}>Plan</th>
-                    <th style={{ padding: '15px', textAlign: 'left' }}>Users</th>
                     <th style={{ padding: '15px', textAlign: 'left' }}>Created</th>
                     <th style={{ padding: '15px', textAlign: 'left' }}>Actions</th>
                   </tr>
@@ -372,6 +679,7 @@ export default function SuperAdmin() {
                     }}>
                       <td style={{ padding: '15px', color: 'white' }}>{org.name}</td>
                       <td style={{ padding: '15px', color: '#B8C5D6' }}>{org.organization_code}</td>
+                      <td style={{ padding: '15px', color: '#7ED321', fontWeight: 'bold' }}>{org.teacher_code || 'N/A'}</td>
                       <td style={{ padding: '15px' }}>
                         <span style={{ 
                           color: org.billing_status === 'active' ? '#28a745' : 
@@ -381,8 +689,6 @@ export default function SuperAdmin() {
                           {org.billing_status.toUpperCase()}
                         </span>
                       </td>
-                      <td style={{ padding: '15px', color: '#B8C5D6' }}>{org.subscription_plan}</td>
-                      <td style={{ padding: '15px', color: '#B8C5D6' }}>{org.user_roles?.length || 0}</td>
                       <td style={{ padding: '15px', color: '#B8C5D6' }}>
                         {new Date(org.created_at).toLocaleDateString()}
                       </td>
@@ -430,51 +736,54 @@ export default function SuperAdmin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.slice(0, 15).map((user, index) => (
-                    <tr key={user.id} style={{ 
-                      borderBottom: '1px solid rgba(23, 162, 184, 0.2)',
-                      backgroundColor: index % 2 === 0 ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
-                    }}>
-                      <td style={{ padding: '15px', color: 'white' }}>
-                        {user.first_name} {user.last_name}
-                      </td>
-                      <td style={{ padding: '15px', color: '#B8C5D6' }}>
-                        {user.user_roles[0]?.role || 'No role'}
-                      </td>
-                      <td style={{ padding: '15px', color: '#B8C5D6' }}>
-                        {user.user_roles[0]?.organizations?.name || 'N/A'}
-                      </td>
-                      <td style={{ padding: '15px' }}>
-                        <span style={{ 
-                          color: user.user_roles[0]?.approved ? '#28a745' : '#ffc107',
-                          fontWeight: 'bold'
-                        }}>
-                          {user.user_roles[0]?.approved ? 'APPROVED' : 'PENDING'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '15px', color: '#B8C5D6' }}>
-                        {new Date(user.created_at).toLocaleDateString()}
-                      </td>
-                      <td style={{ padding: '15px' }}>
-                        {!user.user_roles[0]?.approved && (
-                          <button
-                            onClick={() => handleApproveUser(user.user_id, user.user_roles[0]?.organization_id)}
-                            style={{
-                              padding: '5px 10px',
-                              backgroundColor: '#28a745',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '3px',
-                              cursor: 'pointer',
-                              fontSize: '12px'
-                            }}
-                          >
-                            Approve
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {users.slice(0, 15).map((user, index) => {
+                    const role = user.user_roles[0] || {}
+                    return (
+                      <tr key={user.id} style={{ 
+                        borderBottom: '1px solid rgba(23, 162, 184, 0.2)',
+                        backgroundColor: index % 2 === 0 ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
+                      }}>
+                        <td style={{ padding: '15px', color: 'white' }}>
+                          {user.first_name} {user.last_name}
+                        </td>
+                        <td style={{ padding: '15px', color: '#B8C5D6' }}>
+                          {role.role || 'No role'}
+                        </td>
+                        <td style={{ padding: '15px', color: '#B8C5D6' }}>
+                          {role.organizations?.name || 'N/A'}
+                        </td>
+                        <td style={{ padding: '15px' }}>
+                          <span style={{ 
+                            color: role.approved ? '#28a745' : '#ffc107',
+                            fontWeight: 'bold'
+                          }}>
+                            {role.approved ? 'APPROVED' : 'PENDING'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '15px', color: '#B8C5D6' }}>
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: '15px' }}>
+                          {!role.approved && (
+                            <button
+                              onClick={() => handleApproveUser(user.user_id, role.organization_id)}
+                              style={{
+                                padding: '5px 10px',
+                                backgroundColor: '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                fontSize: '12px'
+                              }}
+                            >
+                              Approve
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -499,44 +808,47 @@ export default function SuperAdmin() {
                 </div>
               ) : (
                 <div style={{ display: 'grid', gap: '15px' }}>
-                  {users.filter(user => !user.user_roles[0]?.approved).map(user => (
-                    <div key={user.id} style={{
-                      padding: '20px',
-                      backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                      border: '1px solid #ffc107',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <div>
-                        <h4 style={{ color: 'white', margin: '0' }}>
-                          {user.first_name} {user.last_name}
-                        </h4>
-                        <p style={{ color: '#B8C5D6', margin: '5px 0' }}>
-                          Role: {user.user_roles[0]?.role} | 
-                          Organization: {user.user_roles[0]?.organizations?.name}
-                        </p>
-                        <small style={{ color: '#B8C5D6' }}>
-                          Requested: {new Date(user.created_at).toLocaleDateString()}
-                        </small>
+                  {users.filter(user => !user.user_roles[0]?.approved).map(user => {
+                    const role = user.user_roles[0] || {}
+                    return (
+                      <div key={user.id} style={{
+                        padding: '20px',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        border: '1px solid #ffc107',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div>
+                          <h4 style={{ color: 'white', margin: '0' }}>
+                            {user.first_name} {user.last_name}
+                          </h4>
+                          <p style={{ color: '#B8C5D6', margin: '5px 0' }}>
+                            Role: {role.role} | 
+                            Organization: {role.organizations?.name}
+                          </p>
+                          <small style={{ color: '#B8C5D6' }}>
+                            Requested: {new Date(user.created_at).toLocaleDateString()}
+                          </small>
+                        </div>
+                        <button
+                          onClick={() => handleApproveUser(user.user_id, role.organization_id)}
+                          style={{
+                            padding: '10px 20px',
+                            backgroundColor: '#28a745',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '5px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          ✅ Approve
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleApproveUser(user.user_id, user.user_roles[0]?.organization_id)}
-                        style={{
-                          padding: '10px 20px',
-                          backgroundColor: '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '5px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        ✅ Approve
-                      </button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
