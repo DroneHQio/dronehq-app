@@ -7,8 +7,15 @@ export default function Dashboard() {
   const [userRole, setUserRole] = useState(null)
   const [organization, setOrganization] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({})
-  const [managedUsers, setManagedUsers] = useState([])
+  const [stats, setStats] = useState({
+    flightLogs: 0,
+    checklists: 0,
+    inventory: 0,
+    users: 0,
+    organizations: 0,
+    pendingApprovals: 0
+  })
+  const [notifications, setNotifications] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
   const router = useRouter()
 
@@ -18,103 +25,157 @@ export default function Dashboard() {
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      setUser(session.user)
-      await loadUserRole(session.user.id, session.user.email)
-    } else {
+    if (!session?.user) {
       router.push('/login')
+      return
     }
+
+    setUser(session.user)
+    await getUserRole(session.user)
     setLoading(false)
   }
 
-  const loadUserRole = async (userId, email) => {
+  const getUserRole = async (user) => {
     try {
-      // Check for super admin first
-      if (email === 'mtnr.fb@gmail.com') {
-        setUserRole({ role: 'super_admin', isMasterAdmin: true })
-        await loadSuperAdminData()
-        return
-      }
-
-      // Check regular roles
-      const { data: roleData } = await supabase
+      // Get user role and organization
+      const { data: roleData, error } = await supabase
         .from('user_roles')
         .select(`
-          *,
-          organizations (*)
+          role,
+          approved,
+          organization_id,
+          organizations (
+            name,
+            organization_code,
+            settings
+          )
         `)
-        .eq('user_id', userId)
+        .eq('user_id', user.id)
         .eq('approved', true)
         .single()
 
       if (roleData) {
-        setUserRole(roleData)
+        setUserRole(roleData.role)
         setOrganization(roleData.organizations)
-        await loadRoleBasedData(roleData)
+        loadDashboardData(roleData.role, roleData.organization_id, user)
+      } else {
+        // Handle users without roles
+        setUserRole('pilot')
+        loadDashboardData('pilot', null, user)
       }
     } catch (error) {
-      console.error('Error loading user role:', error)
+      console.error('Error getting user role:', error)
+      setUserRole('pilot')
+      loadDashboardData('pilot', null, user)
     }
   }
 
-  const loadSuperAdminData = async () => {
-    // Load all organizations and users for super admin
-    const [orgsResult, usersResult, flightsResult] = await Promise.all([
-      supabase.from('organizations').select('*').order('created_at', { ascending: false }),
-      supabase.from('user_profiles').select(`
-        *,
-        user_roles (
-          role,
-          approved,
-          organizations (name)
-        )
-      `).order('created_at', { ascending: false }),
-      supabase.from('flight_logs').select('*', { count: 'exact', head: true })
-    ])
+  const loadDashboardData = async (role, orgId, user) => {
+    try {
+      let newStats = { ...stats }
 
-    setStats({
-      totalOrganizations: orgsResult.data?.length || 0,
-      totalUsers: usersResult.data?.length || 0,
-      totalFlights: flightsResult.count || 0
-    })
-    setManagedUsers(usersResult.data || [])
-  }
+      if (role === 'super_admin') {
+        // Super Admin sees everything
+        const [flightLogs, checklists, inventory, users, organizations, approvals] = await Promise.all([
+          supabase.from('flight_logs').select('id', { count: 'exact' }),
+          supabase.from('checklists').select('id', { count: 'exact' }),
+          supabase.from('inventory').select('id', { count: 'exact' }),
+          supabase.from('user_roles').select('id', { count: 'exact' }),
+          supabase.from('organizations').select('id', { count: 'exact' }),
+          supabase.from('user_roles').select('id', { count: 'exact' }).eq('approved', false)
+        ])
 
-  const loadRoleBasedData = async (roleData) => {
-    if (roleData.role === 'org_admin') {
-      // Load organization users and stats
-      const [usersResult, flightsResult] = await Promise.all([
-        supabase.from('user_roles').select(`
-          *,
-          auth.users!user_id (email),
-          user_profiles!user_id (*)
-        `).eq('organization_id', roleData.organization_id),
-        supabase.from('flight_logs').select('*', { count: 'exact', head: true })
-          .eq('organization_id', roleData.organization_id)
-      ])
+        newStats = {
+          flightLogs: flightLogs.count || 0,
+          checklists: checklists.count || 0,
+          inventory: inventory.count || 0,
+          users: users.count || 0,
+          organizations: organizations.count || 0,
+          pendingApprovals: approvals.count || 0
+        }
 
-      setStats({
-        organizationUsers: usersResult.data?.length || 0,
-        organizationFlights: flightsResult.count || 0
-      })
-      setManagedUsers(usersResult.data || [])
-    } else if (roleData.role === 'teacher') {
-      // Load class students
-      const { data: studentsData } = await supabase
-        .from('user_roles')
-        .select(`
-          *,
-          auth.users!user_id (email),
-          user_profiles!user_id (*),
-          class_codes!class_code_id (*)
-        `)
-        .eq('class_code_id', roleData.class_code_id)
-        .eq('role', 'student')
+        // Load super admin notifications
+        setNotifications([
+          { type: 'info', message: `${newStats.organizations} organizations registered` },
+          { type: 'warning', message: `${newStats.pendingApprovals} pending approvals` },
+          { type: 'success', message: `${newStats.flightLogs} total flights logged` }
+        ])
 
-      setStats({
-        classStudents: studentsData?.length || 0
-      })
-      setManagedUsers(studentsData || [])
+      } else if (role === 'org_admin' && orgId) {
+        // Org Admin sees their organization data
+        const [flightLogs, checklists, inventory, users, approvals] = await Promise.all([
+          supabase.from('flight_logs').select('id', { count: 'exact' }).eq('organization_id', orgId),
+          supabase.from('checklists').select('id', { count: 'exact' }).eq('organization_id', orgId),
+          supabase.from('inventory').select('id', { count: 'exact' }).eq('organization_id', orgId),
+          supabase.from('user_roles').select('id', { count: 'exact' }).eq('organization_id', orgId),
+          supabase.from('user_roles').select('id', { count: 'exact' }).eq('organization_id', orgId).eq('approved', false)
+        ])
+
+        newStats = {
+          flightLogs: flightLogs.count || 0,
+          checklists: checklists.count || 0,
+          inventory: inventory.count || 0,
+          users: users.count || 0,
+          pendingApprovals: approvals.count || 0
+        }
+
+        setNotifications([
+          { type: 'info', message: `${newStats.users} users in your organization` },
+          { type: 'warning', message: `${newStats.pendingApprovals} users awaiting approval` },
+          { type: 'success', message: `${newStats.flightLogs} flights completed` }
+        ])
+
+      } else if (role === 'teacher' && orgId) {
+        // Teacher sees their class data
+        const [flightLogs, checklists, students] = await Promise.all([
+          supabase.from('flight_logs').select('id', { count: 'exact' }).eq('created_by', user.id),
+          supabase.from('checklists').select('id', { count: 'exact' }).eq('created_by', user.id),
+          supabase.from('user_roles').select('id', { count: 'exact' }).eq('approved_by', user.id)
+        ])
+
+        newStats = {
+          flightLogs: flightLogs.count || 0,
+          checklists: checklists.count || 0,
+          students: students.count || 0
+        }
+
+        setNotifications([
+          { type: 'info', message: `${newStats.students} students in your classes` },
+          { type: 'success', message: `${newStats.flightLogs} flight logs completed` }
+        ])
+
+      } else {
+        // Pilot/Student sees personal data
+        const [flightLogs, checklists] = await Promise.all([
+          supabase.from('flight_logs').select('id', { count: 'exact' }).eq('created_by', user.id),
+          supabase.from('checklists').select('id', { count: 'exact' }).eq('created_by', user.id)
+        ])
+
+        newStats = {
+          flightLogs: flightLogs.count || 0,
+          checklists: checklists.count || 0
+        }
+
+        // Check if pilot is on basic plan and approaching limit
+        if (role === 'solo_pilot') {
+          const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM
+          const { count: monthlyLogs } = await supabase
+            .from('flight_logs')
+            .select('id', { count: 'exact' })
+            .eq('created_by', user.id)
+            .gte('created_at', `${currentMonth}-01`)
+
+          if (monthlyLogs >= 12) {
+            setNotifications([
+              { type: 'warning', message: `${monthlyLogs}/15 monthly flights used. Consider upgrading!` }
+            ])
+          }
+        }
+      }
+
+      setStats(newStats)
+    } catch (error) {
+      console.error('Error loading dashboard data:', error)
     }
   }
 
@@ -123,79 +184,60 @@ export default function Dashboard() {
     router.push('/login')
   }
 
-  const handleApproveUser = async (userId, organizationId) => {
-    const { error } = await supabase
-      .from('user_roles')
-      .update({
-        approved: true,
-        approved_by: user.id,
-        approved_at: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-      .eq('organization_id', organizationId)
+  // Role-based button configurations
+  const getRoleButtons = () => {
+    const buttons = []
 
-    if (!error) {
-      loadUserRole(user.id, user.email) // Refresh data
+    // Common buttons for all users
+    buttons.push(
+      { label: '✈️ Flight Log', path: '/flight-log', color: '#007bff' },
+      { label: '✅ Checklist', path: '/checklist', color: '#28a745' },
+      { label: '📋 Licenses', path: '/licenses', color: '#6f42c1' },
+      { label: '👤 Profile', path: '/profile', color: '#6c757d' }
+    )
+
+    if (userRole === 'super_admin') {
+      buttons.unshift(
+        { label: '👑 Super Admin', path: '/super-admin', color: '#dc3545' },
+        { label: '🔒 Manage Admins', path: '/super-admin-management', color: '#fd7e14' },
+        { label: '🛠️ Support Dashboard', path: '/support', color: '#20c997' }
+      )
     }
-  }
 
-  const getRoleDisplayName = (role) => {
-    const roleMap = {
-      'super_admin': 'Super Administrator',
-      'org_admin': 'Organization Administrator', 
-      'teacher': 'Teacher/Moderator',
-      'student': 'Pilot/Student'
+    if (userRole === 'org_admin') {
+      buttons.unshift(
+        { label: '🏢 Organization', path: '/organization-admin', color: '#007bff' },
+        { label: '👥 Manage Users', path: '/user-management', color: '#17a2b8' }
+      )
     }
-    return roleMap[role] || role
-  }
 
-  const getNavigation = () => {
-    const baseNav = [
-      { id: 'overview', label: '📊 Overview', color: '#0070f3' }
-    ]
-
-    if (userRole?.role === 'super_admin') {
-      return [
-        ...baseNav,
-        { id: 'organizations', label: '🏢 All Organizations', color: '#7ED321' },
-        { id: 'users', label: '👥 All Users', color: '#17a2b8' },
-        { id: 'system', label: '⚙️ System Control', color: '#6f42c1' }
-      ]
-    } else if (userRole?.role === 'org_admin') {
-      return [
-        ...baseNav,
-        { id: 'users', label: '👥 Organization Users', color: '#17a2b8' },
-        { id: 'approvals', label: '✅ Pending Approvals', color: '#ffc107' },
-        { id: 'settings', label: '⚙️ Organization Settings', color: '#6c757d' }
-      ]
-    } else if (userRole?.role === 'teacher') {
-      return [
-        ...baseNav,
-        { id: 'students', label: '🎓 My Students', color: '#17a2b8' },
-        { id: 'class', label: '📚 Class Management', color: '#28a745' },
-        { id: 'reports', label: '📊 Class Reports', color: '#fd7e14' }
-      ]
-    } else {
-      return [
-        ...baseNav,
-        { id: 'flights', label: '✈️ My Flights', color: '#28a745' },
-        { id: 'checklists', label: '📋 My Checklists', color: '#17a2b8' },
-        { id: 'profile', label: '👤 My Profile', color: '#6c757d' }
-      ]
+    if (userRole === 'teacher') {
+      buttons.unshift(
+        { label: '🎓 My Classes', path: '/teacher-dashboard', color: '#28a745' },
+        { label: '👨‍🎓 Students', path: '/student-management', color: '#20c997' }
+      )
     }
+
+    if (userRole === 'solo_pilot' || userRole === 'pilot') {
+      buttons.push(
+        { label: '📦 Inventory', path: '/inventory', color: '#ffc107' },
+        { label: '💰 Invoicing', path: '/invoicing', color: '#28a745' }
+      )
+    }
+
+    return buttons
   }
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #1a2332 0%, #0f1419 100%)',
-        color: 'white'
+        background: 'linear-gradient(135deg, #1a2332 0%, #0f1419 100%)'
       }}>
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', color: 'white' }}>
           <div style={{ fontSize: '48px', marginBottom: '20px' }}>🚁</div>
           <h2>Loading Dashboard...</h2>
         </div>
@@ -204,332 +246,200 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ 
+    <div style={{
       minHeight: '100vh',
       backgroundColor: '#f8f9fa',
       padding: '20px'
     }}>
       {/* Header with Logo */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        background: 'linear-gradient(135deg, #1a2332 0%, #0f1419 100%)',
-        color: 'white',
-        padding: '20px 30px',
-        borderRadius: '10px',
-        marginBottom: '30px'
+        marginBottom: '30px',
+        backgroundColor: 'white',
+        padding: '15px 25px',
+        borderRadius: '12px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <img 
             src="/images/logo.png" 
             alt="DroneHQ.io"
+            onClick={() => router.push('/')}
             style={{ 
               height: '40px', 
               width: 'auto',
               marginRight: '15px',
               cursor: 'pointer'
             }}
-            onClick={() => router.push('/')}
           />
           <div>
-            <h1 style={{ margin: '0', color: '#7ED321' }}>
-              {userRole?.role === 'super_admin' ? 'Super Admin Dashboard' : 'DroneHQ.io Dashboard'}
+            <h1 style={{ margin: '0', color: '#1a2332', fontSize: '24px' }}>
+              Dashboard
             </h1>
-            <p style={{ margin: '5px 0 0 0', color: '#B8C5D6', fontSize: '14px' }}>
-              {getRoleDisplayName(userRole?.role)} {organization && `• ${organization.name}`}
+            <p style={{ margin: '0', color: '#6c757d', fontSize: '14px' }}>
+              Welcome back, {user.email}
+              {organization && ` • ${organization.name}`}
+              {userRole && ` • ${userRole.replace('_', ' ').toUpperCase()}`}
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <span style={{ color: '#B8C5D6' }}>Welcome, {user.email}</span>
-          {userRole?.role === 'super_admin' && (
-            <button 
-              onClick={() => router.push('/super-admin-management')}
-              style={{ 
-                padding: '8px 16px',
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              🔒 Admin Control
-            </button>
-          )}
-          <button 
-            onClick={handleSignOut}
-            style={{ 
-              padding: '8px 16px',
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            Sign Out
-          </button>
-        </div>
+
+        <button 
+          onClick={handleSignOut}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '500'
+          }}
+        >
+          Sign Out
+        </button>
       </div>
 
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        {/* Navigation Tabs */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '10px', 
+      {/* Stats Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '20px',
+        marginBottom: '30px'
+      }}>
+        {userRole === 'super_admin' && (
+          <>
+            <div style={{ backgroundColor: '#007bff', color: 'white', padding: '20px', borderRadius: '12px' }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Organizations</h3>
+              <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{stats.organizations}</div>
+            </div>
+            <div style={{ backgroundColor: '#28a745', color: 'white', padding: '20px', borderRadius: '12px' }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Total Users</h3>
+              <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{stats.users}</div>
+            </div>
+            <div style={{ backgroundColor: '#dc3545', color: 'white', padding: '20px', borderRadius: '12px' }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Pending Approvals</h3>
+              <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{stats.pendingApprovals}</div>
+            </div>
+          </>
+        )}
+
+        <div style={{ backgroundColor: '#17a2b8', color: 'white', padding: '20px', borderRadius: '12px' }}>
+          <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Flight Logs</h3>
+          <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{stats.flightLogs}</div>
+        </div>
+
+        <div style={{ backgroundColor: '#28a745', color: 'white', padding: '20px', borderRadius: '12px' }}>
+          <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Checklists</h3>
+          <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{stats.checklists}</div>
+        </div>
+
+        {stats.inventory !== undefined && (
+          <div style={{ backgroundColor: '#ffc107', color: 'white', padding: '20px', borderRadius: '12px' }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Inventory Items</h3>
+            <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{stats.inventory}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Notifications Panel */}
+      {notifications.length > 0 && (
+        <div style={{
+          backgroundColor: 'white',
+          padding: '20px',
+          borderRadius: '12px',
           marginBottom: '30px',
-          flexWrap: 'wrap'
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
         }}>
-          {getNavigation().map(tab => (
+          <h3 style={{ margin: '0 0 15px 0', color: '#1a2332' }}>📢 Notifications</h3>
+          {notifications.map((notification, index) => (
+            <div key={index} style={{
+              padding: '10px 15px',
+              marginBottom: '10px',
+              borderRadius: '6px',
+              backgroundColor: notification.type === 'warning' ? '#fff3cd' : 
+                              notification.type === 'success' ? '#d1edff' : '#e2e3e5',
+              borderLeft: `4px solid ${notification.type === 'warning' ? '#ffc107' : 
+                                    notification.type === 'success' ? '#28a745' : '#6c757d'}`
+            }}>
+              {notification.message}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Role-based Action Buttons */}
+      <div style={{
+        backgroundColor: 'white',
+        padding: '25px',
+        borderRadius: '12px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+      }}>
+        <h3 style={{ margin: '0 0 20px 0', color: '#1a2332' }}>Quick Actions</h3>
+        
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gap: '15px'
+        }}>
+          {getRoleButtons().map((button, index) => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              key={index}
+              onClick={() => router.push(button.path)}
               style={{
-                padding: '12px 24px',
-                backgroundColor: activeTab === tab.id ? tab.color : 'white',
-                color: activeTab === tab.id ? 'white' : tab.color,
-                border: `2px solid ${tab.color}`,
+                padding: '15px 20px',
+                backgroundColor: button.color,
+                color: 'white',
+                border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '14px'
+                fontWeight: '600',
+                fontSize: '14px',
+                transition: 'transform 0.2s',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
               }}
+              onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseOut={(e) => e.target.style.transform = 'translateY(0px)'}
             >
-              {tab.label}
+              {button.label}
             </button>
           ))}
         </div>
-
-        {/* Quick Actions */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '20px',
-          marginBottom: '40px'
-        }}>
-          <div style={{ 
-            padding: '20px', 
-            backgroundColor: 'white', 
-            borderRadius: '10px',
-            border: '2px solid #0070f3',
-            textAlign: 'center',
-            cursor: 'pointer'
-          }} onClick={() => router.push('/flight-log')}>
-            <h3 style={{ color: '#0070f3', margin: '0 0 10px 0' }}>✈️ Log Flight</h3>
-            <p style={{ margin: '0', color: '#6c757d', fontSize: '14px' }}>Record new flight</p>
-          </div>
-
-          <div style={{ 
-            padding: '20px', 
-            backgroundColor: 'white', 
-            borderRadius: '10px',
-            border: '2px solid #28a745',
-            textAlign: 'center',
-            cursor: 'pointer'
-          }} onClick={() => router.push('/checklist')}>
-            <h3 style={{ color: '#28a745', margin: '0 0 10px 0' }}>📋 Checklist</h3>
-            <p style={{ margin: '0', color: '#6c757d', fontSize: '14px' }}>Safety checks</p>
-          </div>
-
-          <div style={{ 
-            padding: '20px', 
-            backgroundColor: 'white', 
-            borderRadius: '10px',
-            border: '2px solid #ffc107',
-            textAlign: 'center',
-            cursor: 'pointer'
-          }} onClick={() => router.push('/licenses')}>
-            <h3 style={{ color: '#ffc107', margin: '0 0 10px 0' }}>🆔 Licenses</h3>
-            <p style={{ margin: '0', color: '#6c757d', fontSize: '14px' }}>Manage certifications</p>
-          </div>
-
-          {(userRole?.role === 'super_admin' || userRole?.role === 'org_admin') && (
-            <div style={{ 
-              padding: '20px', 
-              backgroundColor: 'white', 
-              borderRadius: '10px',
-              border: '2px solid #dc3545',
-              textAlign: 'center',
-              cursor: 'pointer'
-            }}>
-              <h3 style={{ color: '#dc3545', margin: '0 0 10px 0' }}>⚙️ Admin Tools</h3>
-              <p style={{ margin: '0', color: '#6c757d', fontSize: '14px' }}>User management</p>
-            </div>
-          )}
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'overview' && (
-          <div style={{ 
-            backgroundColor: 'white', 
-            padding: '30px', 
-            borderRadius: '10px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-          }}>
-            <h2 style={{ color: '#495057', marginBottom: '20px' }}>Dashboard Overview</h2>
-            
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '20px'
-            }}>
-              {userRole?.role === 'super_admin' && (
-                <>
-                  <div style={{ padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', textAlign: 'center' }}>
-                    <h3 style={{ color: '#7ED321' }}>🏢 Organizations</h3>
-                    <p style={{ fontSize: '32px', margin: '10px 0', color: '#495057' }}>{stats.totalOrganizations}</p>
-                  </div>
-                  <div style={{ padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', textAlign: 'center' }}>
-                    <h3 style={{ color: '#17a2b8' }}>👥 Total Users</h3>
-                    <p style={{ fontSize: '32px', margin: '10px 0', color: '#495057' }}>{stats.totalUsers}</p>
-                  </div>
-                  <div style={{ padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', textAlign: 'center' }}>
-                    <h3 style={{ color: '#28a745' }}>✈️ Total Flights</h3>
-                    <p style={{ fontSize: '32px', margin: '10px 0', color: '#495057' }}>{stats.totalFlights}</p>
-                  </div>
-                </>
-              )}
-              
-              {userRole?.role === 'org_admin' && (
-                <>
-                  <div style={{ padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', textAlign: 'center' }}>
-                    <h3 style={{ color: '#17a2b8' }}>👥 Organization Users</h3>
-                    <p style={{ fontSize: '32px', margin: '10px 0', color: '#495057' }}>{stats.organizationUsers}</p>
-                  </div>
-                  <div style={{ padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', textAlign: 'center' }}>
-                    <h3 style={{ color: '#28a745' }}>✈️ Organization Flights</h3>
-                    <p style={{ fontSize: '32px', margin: '10px 0', color: '#495057' }}>{stats.organizationFlights}</p>
-                  </div>
-                </>
-              )}
-              
-              {userRole?.role === 'teacher' && (
-                <div style={{ padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', textAlign: 'center' }}>
-                  <h3 style={{ color: '#17a2b8' }}>🎓 My Students</h3>
-                  <p style={{ fontSize: '32px', margin: '10px 0', color: '#495057' }}>{stats.classStudents}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {(activeTab === 'users' || activeTab === 'students') && (
-          <div style={{ 
-            backgroundColor: 'white', 
-            padding: '30px', 
-            borderRadius: '10px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-          }}>
-            <h2 style={{ color: '#495057', marginBottom: '20px' }}>
-              {userRole?.role === 'super_admin' ? 'All Platform Users' : 
-               userRole?.role === 'org_admin' ? 'Organization Users' : 'My Students'}
-            </h2>
-            
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ backgroundColor: '#f8f9fa' }}>
-                  <tr>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Name</th>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Email</th>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Role</th>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Status</th>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {managedUsers.slice(0, 10).map((userData, index) => {
-                    const profile = userData.user_profiles || userData
-                    const role = userData.user_roles?.[0] || userData
-                    const email = userData.auth?.users?.email || userData.email || 'N/A'
-                    
-                    return (
-                      <tr key={userData.id || index} style={{ 
-                        borderBottom: '1px solid #dee2e6',
-                        backgroundColor: index % 2 === 0 ? '#f8f9fa' : 'white'
-                      }}>
-                        <td style={{ padding: '12px' }}>
-                          {profile.first_name} {profile.last_name}
-                        </td>
-                        <td style={{ padding: '12px', color: '#6c757d' }}>{email}</td>
-                        <td style={{ padding: '12px' }}>
-                          <span style={{ 
-                            padding: '4px 8px',
-                            backgroundColor: role.role === 'org_admin' ? '#007bff' :
-                                           role.role === 'teacher' ? '#28a745' :
-                                           role.role === 'student' ? '#17a2b8' : '#6c757d',
-                            color: 'white',
-                            borderRadius: '12px',
-                            fontSize: '12px'
-                          }}>
-                            {getRoleDisplayName(role.role)}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          <span style={{ 
-                            color: role.approved ? '#28a745' : '#ffc107',
-                            fontWeight: 'bold'
-                          }}>
-                            {role.approved ? '✅ Approved' : '⏳ Pending'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          {!role.approved && (userRole?.role === 'super_admin' || userRole?.role === 'org_admin' || userRole?.role === 'teacher') && (
-                            <button
-                              onClick={() => handleApproveUser(userData.user_id || userData.id, role.organization_id)}
-                              style={{
-                                padding: '4px 12px',
-                                backgroundColor: '#28a745',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '12px'
-                              }}
-                            >
-                              Approve
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'organizations' && userRole?.role === 'super_admin' && (
-          <div style={{ 
-            backgroundColor: 'white', 
-            padding: '30px', 
-            borderRadius: '10px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-          }}>
-            <h2 style={{ color: '#495057', marginBottom: '20px' }}>All Organizations</h2>
-            <p style={{ color: '#6c757d', marginBottom: '20px' }}>
-              Manage all organizations across the platform
-            </p>
-            <button
-              onClick={() => router.push('/super-admin')}
-              style={{
-                padding: '12px 24px',
-                backgroundColor: '#7ED321',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              🏢 Open Advanced Organization Management
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* Pilot Plan Soft-Lock Warning */}
+      {userRole === 'solo_pilot' && stats.flightLogs >= 15 && (
+        <div style={{
+          marginTop: '20px',
+          backgroundColor: '#fff3cd',
+          border: '2px solid #ffc107',
+          padding: '20px',
+          borderRadius: '12px',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ color: '#856404', margin: '0 0 10px 0' }}>⚠️ Flight Limit Reached</h3>
+          <p style={{ color: '#856404', margin: '0 0 15px 0' }}>
+            You've reached your Basic plan limit of 15 flights per month. Upgrade to continue logging flights!
+          </p>
+          <button
+            onClick={() => router.push('/upgrade')}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '16px'
+            }}
+          >
+            🚀 Upgrade to Unlimited
+          </button>
+        </div>
+      )}
     </div>
   )
 }
