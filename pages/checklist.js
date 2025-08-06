@@ -614,7 +614,7 @@ export default function Checklist() {
                     <option value="Excellent">Excellent (10+ miles)</option>
                     <option value="Good">Good (5-10 miles)</option>
                     <option value="Fair">Fair (3-5 miles)</option>
-                    <option value="Poor">Poor (<3 miles)</option>
+                    <option value="Poor">Poor (under 3 miles)</option>
                   </select>
                 </div>
               </div>
