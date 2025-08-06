@@ -198,9 +198,12 @@ export default function Dashboard() {
 
     if (userRole === 'super_admin') {
       buttons.unshift(
-        { label: '👑 Super Admin', path: '/super-admin', color: '#dc3545' },
-        { label: '🔒 Manage Admins', path: '/super-admin-management', color: '#fd7e14' },
-        { label: '🛠️ Support Dashboard', path: '/support', color: '#20c997' }
+        { label: '👑 Super Admin Dashboard', path: '/super-admin', color: '#dc3545' },
+        { label: '🔒 Manage Super Admins', path: '/super-admin-management', color: '#fd7e14' },
+        { label: '🏢 Add Organization', path: '/super-admin#add-org', color: '#007bff' },
+        { label: '👥 Approve Users', path: '/super-admin#approvals', color: '#28a745' },
+        { label: '🛠️ Support Dashboard', path: '/support', color: '#20c997' },
+        { label: '📊 Platform Analytics', path: '/super-admin#analytics', color: '#6f42c1' }
       )
     }
 
@@ -311,17 +314,25 @@ export default function Dashboard() {
       }}>
         {userRole === 'super_admin' && (
           <>
-            <div style={{ backgroundColor: '#007bff', color: 'white', padding: '20px', borderRadius: '12px' }}>
+            <div style={{ backgroundColor: '#dc3545', color: 'white', padding: '20px', borderRadius: '12px' }}>
               <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Organizations</h3>
               <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{stats.organizations}</div>
+              <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9 }}>Platform-wide</div>
             </div>
             <div style={{ backgroundColor: '#28a745', color: 'white', padding: '20px', borderRadius: '12px' }}>
               <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Total Users</h3>
               <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{stats.users}</div>
+              <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9 }}>All roles</div>
             </div>
-            <div style={{ backgroundColor: '#dc3545', color: 'white', padding: '20px', borderRadius: '12px' }}>
+            <div style={{ backgroundColor: '#fd7e14', color: 'white', padding: '20px', borderRadius: '12px' }}>
               <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Pending Approvals</h3>
               <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{stats.pendingApprovals}</div>
+              <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9 }}>Need attention</div>
+            </div>
+            <div style={{ backgroundColor: '#6f42c1', color: 'white', padding: '20px', borderRadius: '12px' }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Platform Revenue</h3>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>$12,450</div>
+              <div style={{ fontSize: '12px', marginTop: '5px', opacity: 0.9 }}>This month</div>
             </div>
           </>
         )}
@@ -367,6 +378,80 @@ export default function Dashboard() {
               {notification.message}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Super Admin Quick Actions */}
+      {userRole === 'super_admin' && (
+        <div style={{
+          backgroundColor: '#fff5f5',
+          border: '2px solid #dc3545',
+          padding: '25px',
+          borderRadius: '12px',
+          marginBottom: '20px'
+        }}>
+          <h3 style={{ margin: '0 0 15px 0', color: '#dc3545' }}>👑 Super Admin Quick Actions</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
+            <button
+              onClick={() => router.push('/super-admin')}
+              style={{
+                padding: '15px',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '16px'
+              }}
+            >
+              🏢 Manage All Organizations
+            </button>
+            <button
+              onClick={() => router.push('/super-admin-management')}
+              style={{
+                padding: '15px',
+                backgroundColor: '#fd7e14',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '16px'
+              }}
+            >
+              🔒 Grant Super Admin Access
+            </button>
+            <button
+              onClick={() => router.push('/support')}
+              style={{
+                padding: '15px',
+                backgroundColor: '#20c997',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '16px'
+              }}
+            >
+              🛠️ Customer Support Dashboard
+            </button>
+          </div>
+          
+          {stats.pendingApprovals > 0 && (
+            <div style={{
+              marginTop: '15px',
+              padding: '15px',
+              backgroundColor: '#fff3cd',
+              borderRadius: '8px',
+              border: '1px solid #ffc107'
+            }}>
+              <strong style={{ color: '#856404' }}>
+                ⚠️ {stats.pendingApprovals} users waiting for approval across all organizations
+              </strong>
+            </div>
+          )}
         </div>
       )}
 
