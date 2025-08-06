@@ -190,6 +190,23 @@ export default function Home() {
           >
             🎓 Student Signup
           </button>
+
+          <button 
+  onClick={() => window.location.href = '/signup/solo-pilot'}
+  style={{ 
+    padding: '18px 36px', 
+    fontSize: '18px', 
+    backgroundColor: '#7ED321', 
+    color: '#1a2332', 
+    border: 'none', 
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    boxShadow: '0 4px 20px rgba(126, 211, 33, 0.3)'
+  }}
+>
+  🚁 Solo Pilot Signup
+</button>
         </div>
 
         {/* Features Grid */}
